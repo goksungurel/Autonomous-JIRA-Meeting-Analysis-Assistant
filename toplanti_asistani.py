@@ -1,22 +1,42 @@
 """
-2 Ajanlı CrewAI Toplantı Asistanı
-- Analist: Toplantı metninden kararları çıkarır
-- Yazıcı: Kararları JIRA görev formatına dönüştürür
-Ollama llama3:latest kullanır.
+2 Ajanlı CrewAI Toplantı Asistanı (RAG destekli)
+- Analist: Toplantı metninden kararları çıkarır; bilgi tabanında benzer karar/kural arar.
+- Yazıcı: Kararları JIRA görev formatına dönüştürür.
+Ollama llama3:latest (LLM) + nomic-embed-text (RAG embedding) kullanır.
 """
 
 import os
+from pathlib import Path
 
 # CrewAI bazen OpenAI key arar; Ollama kullanırken bypass için dummy key
 os.environ["OPENAI_API_KEY"] = "sk-111111111111111111111111111111111111111111111111"
 
 from crewai import Agent, Task, Crew, LLM  # pyright: ignore[reportMissingImports]
+from crewai_tools import RagTool  # pyright: ignore[reportMissingImports]
+from crewai_tools.tools.rag.types import RagToolConfig  # pyright: ignore[reportMissingImports]
 
 # Yerel Ollama LLM
 local_llm = LLM(
     model="ollama/llama3:latest",
     base_url="http://localhost:11434",
 )
+
+# --- RAG: Yerel bilgi tabanı (Ollama embedding) ---
+# Gerekirse: ollama pull nomic-embed-text
+_rag_config: RagToolConfig = {
+    "embedding_model": {
+        "provider": "ollama",
+        "config": {
+            "model_name": "nomic-embed-text",
+            "url": "http://localhost:11434/api/embeddings",
+        },
+    },
+}
+rag_tool = RagTool(config=_rag_config)
+# Proje içindeki bilgi tabanı klasörünü ekle
+_bilgi_tabani = Path(__file__).resolve().parent / "bilgi_tabani"
+if _bilgi_tabani.exists():
+    rag_tool.add(data_type="directory", path=str(_bilgi_tabani))
 
 # Örnek toplantı metni (istediğin metinle değiştirebilirsin)
 TOPLANTI_METNI = """
@@ -32,12 +52,13 @@ Gündem:
 5. Yeni stajyer onboarding dokümanı hazırlanacak; İK ile koordinasyon kararlaştırıldı.
 """
 
-# --- Ajan 1: Analist ---
+# --- Ajan 1: Analist (RAG ile) ---
 analist = Agent(
     role="Toplantı Analisti",
-    goal="Toplantı metinlerini inceleyip alınan kararları net ve maddeler halinde çıkarmak.",
-    backstory="Sen deneyimli bir toplantı notu analistisin. Metinlerdeki karar, taahhüt ve aksiyonları ayırt edersin.",
+    goal="Toplantı metinlerini inceleyip alınan kararları net ve maddeler halinde çıkarmak; gerektiğinde bilgi tabanında benzer karar veya kuralları ara.",
+    backstory="Sen deneyimli bir toplantı notu analistisin. Metinlerdeki karar, taahhüt ve aksiyonları ayırt edersin. Elindeki RAG aracıyla geçmiş toplantı örnekleri ve JIRA kurallarına bakabilirsin.",
     llm=local_llm,
+    tools=[rag_tool],
     verbose=True,
     allow_delegation=False,
 )
@@ -52,10 +73,11 @@ yazici = Agent(
     allow_delegation=False,
 )
 
-# --- Görev 1: Kararları çıkar ---
+# --- Görev 1: Kararları çıkar (RAG: benzer karar/kural ara) ---
 gorev_kararlari_cikar = Task(
     description=f"""Aşağıdaki toplantı metnini oku ve alınan tüm kararları, taahhütleri ve aksiyonları maddeler halinde çıkar.
 Her madde kısa ve net olsun. Kim/ne zaman biliniyorsa belirt.
+İstersen bilgi tabanında (RAG) benzer karar örnekleri veya JIRA kurallarına bakarak tutarlılık sağla.
 
 TOPLANTI METNİ:
 ---
