@@ -1,12 +1,14 @@
 """
 2 Ajanlı CrewAI Toplantı Asistanı (RAG destekli)
-- Analist: Toplantı metninden kararları çıkarır; bilgi tabanında benzer karar/kural arar.
-- Yazıcı: Kararları JIRA görev formatına dönüştürür.
+- Analist: Toplantı metninden kararları çıkarır; girdi dilini(TR/EN) koruyarak çıktıyı da aynı dilde verir.
+- Yazıcı: Kararları JIRA görev formatına dönüştürür; girdi dilini(TR/EN) koruyarak çıktıyı da aynı dilde verir.
 Ollama llama3:latest (LLM) + nomic-embed-text (RAG embedding) kullanır.
 """
 
 import os
 from pathlib import Path
+
+from torch.cuda import temperature
 
 # CrewAI bazen OpenAI key arar; Ollama kullanırken bypass için dummy key
 os.environ["OPENAI_API_KEY"] = "sk-111111111111111111111111111111111111111111111111"
@@ -19,6 +21,7 @@ from crewai_tools.tools.rag.types import RagToolConfig  # pyright: ignore[report
 local_llm = LLM(
     model="ollama/llama3:latest",
     base_url="http://localhost:11434",
+    temperature=0.2
 )
 
 # --- RAG: Yerel bilgi tabanı (Ollama embedding) ---
@@ -42,6 +45,7 @@ if _bilgi_tabani.exists():
 def analiz_et(metin: str):
     """
     Toplantı metnini analiz eder: kararları çıkarır, JIRA görevlerine dönüştürür.
+    Girdi dili neyse, çıktı dili de o olur.
     metin: Toplantı notu / transkript metni.
     return: Analiz ve JIRA görevleri çıktısı (string).
     """
@@ -49,7 +53,9 @@ def analiz_et(metin: str):
     analist = Agent(
         role="Toplantı Analisti",
         goal="Toplantı metinlerini inceleyip alınan kararları net ve maddeler halinde çıkarmak; gerektiğinde bilgi tabanında benzer karar veya kuralları ara.",
-        backstory="Sen deneyimli bir toplantı notu analistisin. Metinlerdeki karar, taahhüt ve aksiyonları ayırt edersin. Elindeki RAG aracıyla geçmiş toplantı örnekleri ve JIRA kurallarına bakabilirsin.",
+        backstory="""Sen deneyimli bir toplantı notu analistisin. 
+        EN ÖNEMLİ KURALIN: Girdi metni hangi dildeyse (Türkçe ise Türkçe, İngilizce ise İngilizce), 
+        analizini de o dilde yapmalısın. Çeviri yapma, sadece metnin dilini kullanarak kararları özetle.""",
         llm=local_llm,
         tools=[rag_tool],
         verbose=True,
@@ -73,12 +79,13 @@ Her madde kısa ve net olsun. Kim/ne zaman biliniyorsa belirt.
 İstersen bilgi tabanında (RAG) benzer karar örnekleri veya JIRA kurallarına bakarak tutarlılık sağla.
 
 ÖNEMLİ: Toplantı metni hangi dilde yazılmışsa (Türkçe, İngilizce vb.) çıktını da AYNI DİLDE yaz. Metnin dilini koru.
+Giriş veya çıkış cümlesi ekleme, sadece maddeleri yaz.
 
 TOPLANTI METNİ:
 ---
 {metin}
 ---""",
-        expected_output="Madde madde, numaralı karar/aksiyon listesi. Her madde tek paragraf. Çıktı mutlaka toplantı metninin dilinde olmalı.",
+        expected_output="Giriş cümlesi içermeyen,Madde madde, numaralı karar/aksiyon listesi. Her madde tek paragraf. Çıktı mutlaka toplantı metninin dilinde olmalı.",
         agent=analist,
     )
 
