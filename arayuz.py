@@ -51,13 +51,19 @@ if uploaded_file is not None:
                 st.error("Whisper kurulu değil. `pip install openai-whisper` ile kurun.")
                 st.stop()
                 
+            diarizasyon_aktif = st.checkbox("🎙️ Konuşmacı ayrımı yap (kim ne söyledi?)")    
             if st.button("🎤 Sesi Metne Çevir (Whisper)"):
                 with st.status("Ses transkripte çevriliyor...", expanded=True) as status:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(dosya_adi)[1]) as tmp:
                         tmp.write(uploaded_file.getvalue())
                         tmp_path = tmp.name
                     try:
-                        st.session_state["transkript_metni"] = sesi_metne_cevir(tmp_path)
+                        if diarizasyon_aktif:
+                            from ses_transkript import sesi_konusmacilarla_cevir
+                            st.session_state["transkript_metni"] = sesi_konusmacilarla_cevir(tmp_path)
+                        else:
+                            st.session_state["transkript_metni"] = sesi_metne_cevir(tmp_path)
+                       
                     except Exception as e:
                         st.error(f"Hata: {e}")
                         st.stop()
