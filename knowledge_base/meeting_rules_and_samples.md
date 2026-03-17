@@ -1,47 +1,47 @@
-# Örnek Toplantı Kararları ve JIRA Kuralları
+# Sample Meeting Decisions and JIRA Rules
 
-## Geçmiş toplantı karar örnekleri
+## Examples of Past Meeting Decisions
 
 ### Deployment & Release
-- Production deploy kararları genelde bir sonraki sprintte uygulanır.
-- Hotfix kararları 24 saat içinde uygulanır; DevOps ekibi bilgilendirilir.
-- Bakım pencereleri önceden duyurulur; tipik pencere 02:00-06:00 arasıdır.
-- Release öncesi QA onayı zorunludur.
+- Production deployment decisions are generally implemented in the next sprint.
+- Hotfix decisions are implemented within 24 hours; the DevOps team must be notified.
+- Maintenance windows are announced in advance; the typical window is between 02:00-06:00.
+- QA approval is mandatory prior to any release.
 
-### Performans & Teknik Borç
-- Performans sorunları ilgili ekibe (Backend/Mobile) atanır.
-- Mobil uygulama performans sorunları Mobile ekibine atanır.
-- Teknik borç kararları bir sonraki sprintte planlanır.
+### Performance & Technical Debt
+- Performance issues are assigned to the relevant domain team (Backend/Mobile).
+- Mobile application performance issues are specifically assigned to the Mobile team.
+- Technical debt resolutions are planned and scheduled for the next sprint.
 
-### Dokümantasyon
-- Dokümantasyon eksiklikleri ilgili ekip (Backend/Frontend/Mobile) tarafından 2 hafta içinde tamamlanır.
-- API dokümantasyonu eksikse deadline 2 hafta olarak belirlenir.
-- Model veya veri pipeline dokümantasyonu Data/AI ekibine atanır.
+### Documentation
+- Documentation deficiencies must be completed by the relevant team (Backend/Frontend/Mobile) within 2 weeks.
+- If API documentation is missing, the strict deadline is set to 2 weeks.
+- Model or data pipeline documentation tasks are assigned to the Data/AI team.
 
-### Onboarding & İK
-- Onboarding ve İK işleri İK ile koordinasyon gerektirir.
-- Yeni stajyer/çalışan onboarding dokümanı İK ekibi tarafından hazırlanır.
+### Onboarding & HR
+- Onboarding and HR-related tasks require direct coordination with the HR department.
+- Onboarding documents for new interns/employees are prepared by the HR team.
 
 ### Data & AI
-- Model performans sorunları Data/AI ekibine atanır.
-- Veri pipeline hataları Data ekibine atanır, 1 hafta içinde çözülür.
-- AI model güncellemeleri staging ortamında test edilir, sonra production'a alınır.
+- Model performance anomalies are assigned to the Data/AI team.
+- Data pipeline errors are assigned to the Data team and must be resolved within 1 week.
+- AI model updates are rigorously tested in the staging environment before being deployed to production.
 
-## JIRA görev formatı kuralları
-- Başlık: Takım veya alan öneki kullan ([Backend], [Frontend], [Mobile], [Data], [AI], [DevOps], [İK]).
-- Açıklama: Ne yapılacak, kim sorumlu, varsa tarih.
-- Etiket önerileri: team-backend, team-frontend, team-mobile, team-data, team-ai, sprint-XX, documentation, performance, onboarding, hotfix, technical-debt, ml-model, data-pipeline.
+## JIRA Task Formatting Rules
+- **Title:** Must use a team or domain prefix (e.g., [Backend], [Frontend], [Mobile], [Data], [AI], [DevOps], [HR]).
+- **Description:** Clearly state what needs to be done, who is responsible, and the deadline (if applicable).
+- **Tag Suggestions:** team-backend, team-frontend, team-mobile, team-data, team-ai, sprint-XX, documentation, performance, onboarding, hotfix, technical-debt, ml-model, data-pipeline.
 
-## Priority kuralları
-- Deadline açıkça belirtilmişse → Priority: High
-- "Acil", "kritik", "bugün" ifadesi geçiyorsa → Priority: High
-- Production veya müşteri etkisi varsa → Priority: High
-- Bir sonraki sprint planlanmışsa → Priority: Medium
-- "Araştır", "incele", "değerlendir" ifadesi geçiyorsa → Priority: Low
-- Teknik borç veya iyileştirme ise → Priority: Low
+## Priority Rules
+- If a deadline is explicitly stated → **Priority: High**
+- If the terms "urgent", "critical", or "today" are used → **Priority: High**
+- If there is a direct production or customer impact → **Priority: High**
+- If the task is planned for the upcoming sprint → **Priority: Medium**
+- If the terms "research", "investigate", or "evaluate" are used → **Priority: Low**
+- If the task is related to technical debt or general improvements → **Priority: Low**
 
-## Karar → Görev örnekleri
-- "Mobil uygulama yavaş" → [Mobile] Uygulama performans optimizasyonu | Priority: High | Etiket: team-mobile, performance
-- "API v2 dokümantasyonu eksik, 2 hafta içinde tamamlanacak" → [Backend] API v2 dokümantasyonunu tamamla | Priority: High | Etiket: team-backend, documentation
-- "Öneri modeli staging'de test edilecek" → [AI] Öneri modeli staging testini tamamla | Priority: Medium | Etiket: team-ai, ml-model
-- "Veri pipeline'ında gecikme var, araştırılacak" → [Data] Veri pipeline gecikme sebebini araştır | Priority: Low | Etiket: team-data, data-pipeline
+## Decision → Task Examples
+- **"Mobile app is slow"** → [Mobile] Application performance optimization | Priority: High | Tags: team-mobile, performance
+- **"API v2 documentation is missing, will be completed in 2 weeks"** → [Backend] Complete API v2 documentation | Priority: High | Tags: team-backend, documentation
+- **"Recommendation model will be tested in staging"** → [AI] Complete recommendation model staging test | Priority: Medium | Tags: team-ai, ml-model
+- **"There is a delay in the data pipeline, needs investigation"** → [Data] Investigate data pipeline delay cause | Priority: Low | Tags: team-data, data-pipeline

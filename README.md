@@ -1,51 +1,55 @@
-# Meeting Analysis & JIRA Task Assistant (Local RAG)
+# 🤖 Autonomous JIRA & Meeting Analysis Assistant (Multi-Agent RAG)
 
-This project is a privacy-focused, Local AI Assistant designed to analyze meeting transcripts and autonomously generate structured JIRA tasks. It is built with a focus on data privacy, executing entirely on local infrastructure without external API dependencies.
+A **privacy-first**, local AI solution designed to transcribe Turkish meetings, translate them into technical English, and autonomously generate structured JIRA tasks using a **Multi-Agent Orchestration** and **Local RAG** architecture.
 
-## 🚀 Core Capabilities
+## 🚀 Core Value Proposition
 
-**Autonomous Analysis:** Uses CrewAI to orchestrate multiple agents that summarize transcripts and identify action items.
+* **Privacy-First Execution:** Powered by **Ollama (Llama 3)** and **Nomic-Embed-Text**, ensuring 100% of meeting data stays on the local machine. No external LLM APIs are used for reasoning.
+* **Tiered Agentic Workflow:** Uses a sophisticated 3-agent pipeline (Editor, Analyst, Specialist) to manage context transitions from raw audio to professional project management outputs.
+* **Automated Translation & Correction:** Features a specialized agent that bridges the gap between Turkish audio and English technical standards, fixing Whisper-specific hallucinations (e.g., "ilkkağ" → "HR") in real-time.
+* **Local RAG (Retrieval-Augmented Generation):** Cross-references extracted decisions with organizational standards (stored in `/knowledge_base`) to automate priority levels and team tagging.
 
-**Local RAG Architecture:** Employs a Retrieval-Augmented Generation pipeline to cross-reference organizational standards stored in a local knowledge base.
+## 🛠️ The Agentic Pipeline
 
-**Privacy-First Execution:** Powered by Ollama, using Llama 3 for reasoning and Nomic-Embed-Text for vector embeddings, ensuring all data remains on the local machine.
+Our system employs three specialized agents via **CrewAI** to ensure high-fidelity task generation:
 
-**Professional JIRA Output:** Generates tasks with specific titles, descriptions, priority levels, and acceptance criteria based on the meeting context.
+1.  **Senior Transcript Editor & Translator:** Captures raw Turkish output, corrects grammar, resolves technical jargon, and translates the entire context into formal technical English.
+2.  **IT Meeting Analyst:** Analyzes the structured English transcript to identify key deliverables, sprint goals, and technical requirements.
+3.  **JIRA Operations Specialist:** Autonomously interacts with the **Atlassian JIRA API** to create individual tasks with specific summaries, descriptions, and metadata derived from the RAG rules.
 
-**Speaker Diarization:** Automatically identifies who said what in meeting recordings using pyannote.audio 3.1 + Whisper. Output format: `[SPEAKER_00 - 00:03]: Payment integration is complete.`
-
-**Streamlit UI:** A clean and functional web interface for seamless document uploading and real-time processing.
-
-## 🛠️ Tech Stack
+## 💻 Tech Stack
 
 - **Orchestration:** CrewAI
-- **Local LLM:** Llama 3 (via Ollama)
-- **Vector Database:** Local RAG via Nomic-Embed-Text
-- **Speech-to-Text:** OpenAI Whisper
+- **Local LLM & Embeddings:** Llama 3 & Nomic-Embed-Text (via Ollama)
+- **Speech-to-Text:** OpenAI Whisper (enhanced with technical `initial_prompt`)
 - **Speaker Diarization:** pyannote.audio 3.1
-- **JIRA Integration:** Atlassian JIRA API (automatic task creation)
-- **Frontend:** Streamlit
-- **Development:** Cursor (AI-Native IDE)
+- **Interface:** Streamlit
+- **Infrastructure:** Python 3.13 / Atlassian-Python-API
 
 ## 🔄 How It Works
-```
-Audio/Text File
+```text
+Raw Audio (.mp3/.wav)
       ↓
-  Whisper (speech-to-text)
+  Whisper + Pyannote (Diarized Turkish Transcript)
       ↓
-  pyannote.audio (who said what?)
+  Agent 1: Clean, Fix Hallucinations & Translate to English
       ↓
-  Agent 1: Extract decisions + RAG knowledge base
+  Agent 2: Extract Action Items + Query Local Knowledge Base (RAG)
       ↓
-  Agent 2: Convert to JIRA format
+  Agent 3: Execute JIRA API calls for each identified task
       ↓
-  JIRA API → Tasks created automatically ✅
+  JIRA Board Updated ✅
 ```
 
 ## 📚 RAG-Powered Task Generation
 
-The system retrieves organizational guidelines from the `/bilgi_tabani` directory to ensure all generated tasks meet quality standards, including priority rules, team assignments, and labeling conventions.
+The system retrieves organizational guidelines from the `/knowledge_base` directory to ensure all generated tasks meet quality standards, including:
+- **Priority Logic:** Automatically assigns High/Medium/Low based on deadline, urgency, and customer impact.
+- **Team Assignment:** Routes tasks to [Backend], [Frontend], [Mobile], or [Data] teams based on context.
+- **Naming Conventions:** Enforces standardized JIRA summary formats and label suggestions (e.g., hotfix, performance, technical-debt).
 
 ## 🎓 About the Project
 
-Developed by a 3rd-year Software Engineering student as a portfolio piece to demonstrate expertise in Agentic AI, RAG systems, NLP pipelines, and Local LLM deployment. The project highlights the ability to bridge the gap between complex AI logic and user-friendly software products.
+Developed by **Göksun**, a 3rd-year Software Engineering student at **Izmir University of Economics**, as a portfolio piece to demonstrate expertise in **Agentic AI**, **RAG Systems**, **NLP Pipelines**, and **Local LLM Deployment**. 
+
+The project highlights the ability to bridge the gap between complex autonomous AI logic and enterprise-grade software products (JIRA integration), with a strong focus on data privacy and local-first infrastructure.
