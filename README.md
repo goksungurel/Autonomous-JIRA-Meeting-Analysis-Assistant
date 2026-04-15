@@ -30,7 +30,7 @@ Our system employs three specialized agents via **CrewAI** to ensure high-fideli
 ```text
 Raw Audio (.mp3/.wav)
       ↓
-  Whisper + Pyannote (Diarized Turkish Transcript)
+  Whisper + Pyannote (Diarized Transcript)
       ↓
   Agent 1: Clean, Fix Hallucinations & Translate to English
       ↓
