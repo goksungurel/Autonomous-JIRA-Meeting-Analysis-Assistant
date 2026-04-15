@@ -86,9 +86,9 @@ if _knowledge_base.exists():
 def analyze_meeting(text: str):
     # Agents
     transcript_editor = Agent(
-        role="Senior Transcript Editor and Translator",
-        goal="To clean spelling errors and grammar mistakes in Turkish transcripts, and TRANSLATE the final output into clear, technical English.",
-        backstory="You are an expert editor fluent in both Turkish and English software terminology. You fix Whisper transcription errors (e.g., 'ilkkağ' to 'İK', 'Seldar' to 'Selda/Serdar') and convert devricted sentences into a formal, structured meeting record in English.",
+        role="Senior Transcript Editor",
+        goal="To clean spelling errors, grammar mistakes, and Whisper misinterpretations in the English transcript.",
+        backstory="You are an expert technical editor fluent in software terminology. You fix Whisper transcription errors and convert fragmented sentences into a formal, structured meeting record in clear English.",
         llm=local_llm,
         verbose=True
     )
@@ -115,7 +115,7 @@ def analyze_meeting(text: str):
 
     # Tasks
     clean_and_translate_task = Task(
-        description=f"Clean the spelling, grammar, and technical terminology of the following raw Turkish meeting transcript and translate it into formal English:\n\n{text}",
+        description=f"Clean the spelling, grammar, and technical terminology of the following raw English meeting transcript:\n\n{text}",
         expected_output="A polished, structured meeting transcript in English, free from grammar errors and Whisper misinterpretations.",
         agent=transcript_editor
     )
