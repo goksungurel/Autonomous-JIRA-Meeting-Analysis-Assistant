@@ -38,6 +38,7 @@ class JiraTaskTool(BaseTool):
     """
 
     def _run(self, summary: str, description: str) -> str:
+        """
         try:
             jira = Jira(
                 url=JIRA_URL,
@@ -55,6 +56,16 @@ class JiraTaskTool(BaseTool):
             return f"SUCCESS: Task with key {issue['key']} created on JIRA."
         except Exception as e:
             return f"ERROR: Could not create JIRA task. Detail: {str(e)}"
+            """
+
+        import random
+        fake_jira_key = f"KAN-{random.randint(100, 999)}"
+        
+        # Terminalde bizim de görebilmemiz için log yazdırıyoruz
+        print(f"\n[MOCK API CALL] JIRA'ya gidilmedi ama görev açıldı sayıldı: {fake_jira_key}")
+        print(f"Başlık: {summary}\n")
+        
+        return f"SUCCESS: Task with key {fake_jira_key} created on JIRA."
 
 jira_tool = JiraTaskTool()
 
@@ -95,10 +106,12 @@ def analyze_meeting(text: str):
 
     meeting_analyst = Agent(
         role="IT Meeting Analyst",
-        goal="Extract clear, concise, and actionable decision points from meeting minutes for the software team.",
-        backstory="You are an experienced IT business analyst. You analyze structured English text to identify key deliverables, sprint tasks, and system architecture decisions. You maintain an objective tone.",
+        goal="Extract actionable decision points and format them strictly according to company standards.",
+        backstory="""You are an experienced IT business analyst. 
+        You MUST use the RagTool EXACTLY ONCE to retrieve the 'JIRA standards'. 
+        CRITICAL: After reading the knowledge base once, DO NOT use the tool again. Immediately synthesize the meeting notes and provide your Final Answer.""",
         llm=local_llm,
-        #tools=[rag_tool], # Uncomment if RAG is needed
+        tools=[rag_tool],
         verbose=True
     )
 
@@ -121,8 +134,13 @@ def analyze_meeting(text: str):
     )
 
     extract_action_items_task = Task(
-        description="Analyze the polished, translated English meeting record and extract key actionable decision points for the software development team.",
-        expected_output="A bulleted list of technical decisions and action items, without an introductory sentence.",
+        description="""Follow these steps strictly:
+        1. Use the RAG tool EXACTLY ONCE with the query 'JIRA standards'.
+        2. Read and memorize the returning formatting rules and priority logic.
+        3. Analyze the English meeting record.
+        4. Extract the action items and format them perfectly matching the company rules.
+        5. Return the final bulleted list. DO NOT use the RAG tool a second time.""",
+        expected_output="A bulleted list of technical decisions and action items formatted exactly according to company standards.",
         agent=meeting_analyst,
         context=[clean_and_translate_task]
     )
