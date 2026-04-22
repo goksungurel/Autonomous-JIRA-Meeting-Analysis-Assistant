@@ -4,7 +4,6 @@ Completely refactored for professional English standards.
 """
 import os
 from pathlib import Path
-from typing import Type
 from dotenv import load_dotenv
 from crewai import Agent, Task, Crew, LLM
 from crewai.tools import BaseTool
@@ -94,8 +93,18 @@ if _knowledge_base.exists():
     rag_tool.add(data_type="directory", path=str(_knowledge_base))
 
 # --- ANALYSIS FUNCTION ---
-def analyze_meeting(text: str):
-    # Agents
+def _build_guidance_block(human_input: str) -> str:
+    user_guidance = (human_input or "").strip()
+    return (
+        f"\n\nAdditional human guidance from the user:\n{user_guidance}"
+        if user_guidance
+        else ""
+    )
+
+
+def draft_jira_tasks(text: str, human_input: str = ""):
+    guidance_block = _build_guidance_block(human_input)
+
     transcript_editor = Agent(
         role="Senior Transcript Editor",
         goal="To clean spelling errors, grammar mistakes, and Whisper misinterpretations in the English transcript.",
@@ -115,6 +124,40 @@ def analyze_meeting(text: str):
         verbose=True
     )
 
+    # Tasks
+    clean_and_translate_task = Task(
+        description=(
+            "Clean the spelling, grammar, and technical terminology of the following "
+            f"raw English meeting transcript:\n\n{text}{guidance_block}"
+        ),
+        expected_output="A polished, structured meeting transcript in English, free from grammar errors and Whisper misinterpretations.",
+        agent=transcript_editor
+    )
+
+    extract_action_items_task = Task(
+        description=f"""Follow these steps strictly:
+        1. Use the RAG tool EXACTLY ONCE with the query 'JIRA standards'.
+        2. Read and memorize the returning formatting rules and priority logic.
+        3. Analyze the English meeting record.
+        4. Extract the action items and format them perfectly matching the company rules.
+        5. Return the final bulleted list. DO NOT use the RAG tool a second time.
+        6. Respect any additional human guidance if provided.{guidance_block}""",
+        expected_output="A bulleted list of technical decisions and action items formatted exactly according to company standards.",
+        agent=meeting_analyst,
+        context=[clean_and_translate_task]
+    )
+
+    crew = Crew(
+        agents=[transcript_editor, meeting_analyst],
+        tasks=[clean_and_translate_task, extract_action_items_task],
+        verbose=True
+    )
+    return crew.kickoff()
+
+
+def create_jira_tasks(action_items: str, human_input: str = ""):
+    guidance_block = _build_guidance_block(human_input)
+
     jira_specialist = Agent(
         role="JIRA Operations Specialist",
         goal="Create tasks on JIRA using the JiraTaskCreator tool based on extracted decisions.",
@@ -126,39 +169,28 @@ def analyze_meeting(text: str):
         verbose=True
     )
 
-    # Tasks
-    clean_and_translate_task = Task(
-        description=f"Clean the spelling, grammar, and technical terminology of the following raw English meeting transcript:\n\n{text}",
-        expected_output="A polished, structured meeting transcript in English, free from grammar errors and Whisper misinterpretations.",
-        agent=transcript_editor
-    )
-
-    extract_action_items_task = Task(
-        description="""Follow these steps strictly:
-        1. Use the RAG tool EXACTLY ONCE with the query 'JIRA standards'.
-        2. Read and memorize the returning formatting rules and priority logic.
-        3. Analyze the English meeting record.
-        4. Extract the action items and format them perfectly matching the company rules.
-        5. Return the final bulleted list. DO NOT use the RAG tool a second time.""",
-        expected_output="A bulleted list of technical decisions and action items formatted exactly according to company standards.",
-        agent=meeting_analyst,
-        context=[clean_and_translate_task]
-    )
-
     create_jira_tasks_task = Task(
-        description="""Report the result of the tasks created using the JiraTaskCreator tool. 
-        Format strictly as:
-        ✅ [JIRA_KEY] - Task Summary: Successfully created.""",
+        description=(
+            "Create JIRA tasks from the approved action items below.\n\n"
+            f"Approved action items:\n{action_items}\n\n"
+            "Report the result of the tasks created using the JiraTaskCreator tool. "
+            "Format strictly as:\n"
+            "✅ - Task Summary: Successfully created."
+            f"{guidance_block}"
+        ),
         expected_output="A clean list of created JIRA tasks.",
-        agent=jira_specialist,
-        context=[extract_action_items_task]
+        agent=jira_specialist
     )
 
-    # Crew Setup and Execution
     crew = Crew(
-        agents=[transcript_editor, meeting_analyst, jira_specialist],
-        tasks=[clean_and_translate_task, extract_action_items_task, create_jira_tasks_task],
+        agents=[jira_specialist],
+        tasks=[create_jira_tasks_task],
         verbose=True
     )
-
     return crew.kickoff()
+
+
+def analyze_meeting(text: str, human_input: str = ""):
+    draft_result = draft_jira_tasks(text, human_input=human_input)
+    approved_action_items = getattr(draft_result, "raw", str(draft_result))
+    return create_jira_tasks(approved_action_items, human_input=human_input)
