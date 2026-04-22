@@ -17,7 +17,7 @@ signal.signal = _safe_signal
 os.environ["CREWAI_TELEMETRY_OPT_OUT"] = "true"
 
 # Refactored imports
-from meeting_assistant import analyze_meeting
+from meeting_assistant import create_jira_tasks, draft_jira_tasks
 
 st.set_page_config(page_title="AI Meeting Assistant", layout="wide")
 st.title("🤖 Autonomous JIRA & Meeting Analysis Assistant")
@@ -35,6 +35,12 @@ uploaded_file = st.file_uploader(
     type=["txt", "mp3", "wav"],
 )
 
+human_input = st.text_area(
+    "Human Input (optional guidance for agents)",
+    placeholder="Example: Prioritize backend tasks and skip non-technical notes.",
+    height=100,
+)
+
 if uploaded_file is not None:
     file_name = uploaded_file.name
     extension = (file_name.rsplit(".", 1)[-1].lower()) if "." in file_name else ""
@@ -42,6 +48,8 @@ if uploaded_file is not None:
     if st.session_state.get("uploaded_file_name") != file_name:
         st.session_state["uploaded_file_name"] = file_name
         st.session_state.pop("transcript_text", None)
+        st.session_state.pop("drafted_action_items", None)
+        st.session_state.pop("jira_creation_output", None)
 
     if extension == "txt":
         text_content = uploaded_file.getvalue().decode("utf-8")
@@ -83,14 +91,39 @@ if uploaded_file is not None:
         analysis_content = st.session_state["transcript_text"]
         st.text_area("Whisper Transcript (Source)", analysis_content, height=150)
 
-    if st.button("🧠 Run Autonomous Agents & Sync with JIRA"):
-        with st.status("Autonomous agents are analyzing and communicating with JIRA...", expanded=True) as status:
+    if st.button("🧠 Generate Task Suggestions"):
+        with st.status("Agents are analyzing the meeting and preparing draft tasks...", expanded=True) as status:
             try:
-                result = analyze_meeting(analysis_content)
-                status.update(label="Process Completed!", state="complete", expanded=False)
-                st.subheader("✅ JIRA Task Creation Output")
-                # Using .raw for compatibility with CrewAI V2+
-                st.markdown(result.raw) 
+                draft_result = draft_jira_tasks(analysis_content, human_input=human_input)
+                st.session_state["drafted_action_items"] = getattr(draft_result, "raw", str(draft_result))
+                st.session_state.pop("jira_creation_output", None)
+                status.update(label="Draft task list is ready.", state="complete", expanded=False)
             except Exception as e:
                 status.update(label="Agent Error", state="error", expanded=True)
                 st.error(f"Error detail: {e}")
+
+    drafted_action_items = st.session_state.get("drafted_action_items")
+    if drafted_action_items:
+        st.subheader("📝 Proposed Tasks (Awaiting Human Approval)")
+        st.markdown(drafted_action_items)
+        st.warning("JIRA tasks will NOT be created until you approve.")
+
+        if st.button("✅ Approve & Create Tasks on JIRA"):
+            with st.status("Creating approved tasks on JIRA...", expanded=True) as status:
+                try:
+                    jira_result = create_jira_tasks(drafted_action_items, human_input=human_input)
+                    st.session_state["jira_creation_output"] = getattr(jira_result, "raw", str(jira_result))
+                    status.update(label="Approved tasks were created.", state="complete", expanded=False)
+                except Exception as e:
+                    status.update(label="JIRA Creation Error", state="error", expanded=True)
+                    st.error(f"Error detail: {e}")
+
+        if st.button("❌ Reject Draft Tasks"):
+            st.session_state.pop("drafted_action_items", None)
+            st.session_state.pop("jira_creation_output", None)
+            st.rerun()
+
+    jira_creation_output = st.session_state.get("jira_creation_output")
+    if jira_creation_output:
+        st.subheader("✅ JIRA Task Creation Output")
+        st.markdown(jira_creation_output)
