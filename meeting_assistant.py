@@ -190,7 +190,99 @@ def create_jira_tasks(action_items: str, human_input: str = ""):
     return crew.kickoff()
 
 
-def analyze_meeting(text: str, human_input: str = ""):
+def _parse_action_items(action_items: str):
+    lines = [line.strip() for line in action_items.splitlines() if line.strip()]
+    cleaned = []
+    for line in lines:
+        normalized = line.lstrip("-*• ").strip()
+        if normalized:
+            cleaned.append(normalized)
+    return cleaned
+
+
+def _render_action_items(action_items_list):
+    if not action_items_list:
+        print("\nNo action items available.\n")
+        return
+    print("\n--- Action Items Pending Approval ---")
+    for idx, item in enumerate(action_items_list, start=1):
+        print(f"{idx}. {item}")
+    print("-------------------------------------\n")
+
+
+def _human_approval_screen(action_items: str) -> str:
+    """
+    Human-in-the-loop approval step before JIRA creation.
+    Users can edit/delete/add items until they approve.
+    """
+    items = _parse_action_items(action_items)
+
+    while True:
+        _render_action_items(items)
+        print("Commands:")
+        print("  approve                     -> continue and create JIRA tasks")
+        print("  edit <index>                -> edit one action item")
+        print("  delete <index>              -> delete one action item")
+        print("  add                         -> add a new action item")
+        print("  cancel                      -> stop the flow")
+        raw_cmd = input("Your command: ").strip()
+
+        if not raw_cmd:
+            continue
+
+        lower_cmd = raw_cmd.lower()
+
+        if lower_cmd == "approve":
+            if not items:
+                print("Cannot approve an empty list. Add at least one action item.")
+                continue
+            return "\n".join(f"- {item}" for item in items)
+
+        if lower_cmd == "add":
+            new_item = input("New action item: ").strip()
+            if new_item:
+                items.append(new_item)
+            else:
+                print("Empty action item ignored.")
+            continue
+
+        if lower_cmd == "cancel":
+            raise RuntimeError("Human approval cancelled. JIRA tasks were not created.")
+
+        tokens = raw_cmd.split(maxsplit=1)
+        if len(tokens) != 2:
+            print("Invalid command format.")
+            continue
+
+        action, raw_index = tokens[0].lower(), tokens[1].strip()
+        if not raw_index.isdigit():
+            print("Index must be a number.")
+            continue
+
+        index = int(raw_index) - 1
+        if index < 0 or index >= len(items):
+            print("Index out of range.")
+            continue
+
+        if action == "delete":
+            removed = items.pop(index)
+            print(f"Deleted: {removed}")
+            continue
+
+        if action == "edit":
+            updated = input("Updated text: ").strip()
+            if updated:
+                items[index] = updated
+            else:
+                print("Empty update ignored.")
+            continue
+
+        print("Unknown command.")
+
+
+def analyze_meeting(text: str, human_input: str = "", require_human_approval: bool = True):
     draft_result = draft_jira_tasks(text, human_input=human_input)
     approved_action_items = getattr(draft_result, "raw", str(draft_result))
+    if require_human_approval:
+        approved_action_items = _human_approval_screen(approved_action_items)
     return create_jira_tasks(approved_action_items, human_input=human_input)
