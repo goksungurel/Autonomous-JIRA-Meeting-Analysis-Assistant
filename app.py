@@ -19,6 +19,21 @@ os.environ["CREWAI_TELEMETRY_OPT_OUT"] = "true"
 # Refactored imports
 from meeting_assistant import create_jira_tasks, draft_jira_tasks
 
+
+def _parse_action_items(raw_text: str):
+    lines = [line.strip() for line in (raw_text or "").splitlines() if line.strip()]
+    items = []
+    for line in lines:
+        normalized = line.lstrip("-*• ").strip()
+        if normalized:
+            items.append(normalized)
+    return items
+
+
+def _action_items_to_markdown(items):
+    valid_items = [item.strip() for item in items if item and item.strip()]
+    return "\n".join(f"- {item}" for item in valid_items)
+
 st.set_page_config(page_title="AI Meeting Assistant", layout="wide")
 st.title("🤖 Autonomous JIRA & Meeting Analysis Assistant")
 st.markdown("---")
@@ -95,7 +110,10 @@ if uploaded_file is not None:
         with st.status("Agents are analyzing the meeting and preparing draft tasks...", expanded=True) as status:
             try:
                 draft_result = draft_jira_tasks(analysis_content, human_input=human_input)
-                st.session_state["drafted_action_items"] = getattr(draft_result, "raw", str(draft_result))
+                drafted_text = getattr(draft_result, "raw", str(draft_result))
+                st.session_state["drafted_action_items"] = drafted_text
+                st.session_state["editable_action_items"] = _parse_action_items(drafted_text)
+                st.session_state["new_action_item_input"] = ""
                 st.session_state.pop("jira_creation_output", None)
                 status.update(label="Draft task list is ready.", state="complete", expanded=False)
             except Exception as e:
@@ -105,13 +123,62 @@ if uploaded_file is not None:
     drafted_action_items = st.session_state.get("drafted_action_items")
     if drafted_action_items:
         st.subheader("📝 Proposed Tasks (Awaiting Human Approval)")
-        st.markdown(drafted_action_items)
+        st.caption("You can edit, delete, or add tasks before JIRA creation.")
+
+        editable_items = st.session_state.get("editable_action_items", [])
+        if not editable_items:
+            st.info("No parsed action items found. Add one below to continue.")
+
+        delete_index = None
+        for idx, item in enumerate(editable_items):
+            col_text, col_delete = st.columns([0.9, 0.1])
+            with col_text:
+                updated_value = st.text_input(
+                    f"Task {idx + 1}",
+                    value=item,
+                    key=f"task_input_{idx}",
+                    label_visibility="collapsed",
+                    placeholder=f"Task {idx + 1}",
+                )
+                editable_items[idx] = updated_value
+            with col_delete:
+                if st.button("🗑️", key=f"delete_task_{idx}", help=f"Delete task {idx + 1}"):
+                    delete_index = idx
+
+        if delete_index is not None:
+            editable_items.pop(delete_index)
+            st.session_state["editable_action_items"] = editable_items
+            st.rerun()
+
+        st.markdown("**Add New Action Item**")
+        st.text_input(
+            "New action item",
+            key="new_action_item_input",
+            placeholder="Write a new action item...",
+            label_visibility="collapsed",
+        )
+        if st.button("➕ Add Item"):
+            new_item = st.session_state.get("new_action_item_input", "").strip()
+            if new_item:
+                editable_items.append(new_item)
+                st.session_state["editable_action_items"] = editable_items
+                st.session_state["new_action_item_input"] = ""
+                st.rerun()
+            else:
+                st.warning("New action item cannot be empty.")
+
+        preview_markdown = _action_items_to_markdown(editable_items)
+        st.markdown("**Final Preview**")
+        st.markdown(preview_markdown if preview_markdown else "_No approved items yet._")
         st.warning("JIRA tasks will NOT be created until you approve.")
 
         if st.button("✅ Approve & Create Tasks on JIRA"):
+            if not preview_markdown:
+                st.error("Please keep at least one action item before approval.")
+                st.stop()
             with st.status("Creating approved tasks on JIRA...", expanded=True) as status:
                 try:
-                    jira_result = create_jira_tasks(drafted_action_items, human_input=human_input)
+                    jira_result = create_jira_tasks(preview_markdown, human_input=human_input)
                     st.session_state["jira_creation_output"] = getattr(jira_result, "raw", str(jira_result))
                     status.update(label="Approved tasks were created.", state="complete", expanded=False)
                 except Exception as e:
@@ -120,6 +187,8 @@ if uploaded_file is not None:
 
         if st.button("❌ Reject Draft Tasks"):
             st.session_state.pop("drafted_action_items", None)
+            st.session_state.pop("editable_action_items", None)
+            st.session_state.pop("new_action_item_input", None)
             st.session_state.pop("jira_creation_output", None)
             st.rerun()
 
