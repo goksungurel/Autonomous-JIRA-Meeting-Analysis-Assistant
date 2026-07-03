@@ -53,15 +53,17 @@ Agent 3: JIRA Specialist (creates approved tasks)
 - **Speech-to-text:** OpenAI Whisper (`transcription.py`)
 - **Speaker diarization (optional):** `pyannote.audio` (requires Hugging Face token)
 - **RAG rules / standards:** Markdown files in `knowledge_base/`
+- **Session history:** SQLite (`database.py`) — meetings and JIRA outputs persisted locally
 
 ## Repository structure
 
 - `app.py`: Streamlit UI for upload, transcription, draft task generation, and approval-based JIRA creation.
 - `meeting_assistant.py`: 3-agent CrewAI logic, RAG integration, and JIRA tool.
 - `transcription.py`: Whisper transcription functions (+ optional diarization).
+- `database.py`: SQLite helpers for persisting meeting history.
 - `knowledge_base/meeting_rules_and_samples.md`: sample standards and "JIRA rules" used by RAG.
 - `requirements.txt`: Python dependencies.
-- `tests/`: Unit tests for pure utility functions (run with `pytest`).
+- `tests/`: Unit tests for pure utility functions and database operations (run with `pytest`).
 
 ## Prerequisites
 
@@ -116,11 +118,12 @@ streamlit run app.py
 Then:
 
 1. Upload `.txt` transcript or `.mp3`/`.wav` audio.
-2. If audio, click **Transcribe Audio (Whisper)** (optionally with diarization).
+2. If audio, select the **audio language** (English by default) and optionally enable diarization, then click **Transcribe Audio (Whisper)**.
 3. Add optional **Human Input** guidance.
 4. Click **Generate Task Suggestions**.
-5. Review draft tasks.
+5. Review and edit draft tasks.
 6. Click **Approve & Create Tasks on JIRA** to proceed, or reject the draft.
+7. Approved meetings are saved automatically — view past meetings in the **Meeting History** sidebar.
 
 ## Speaker diarization (optional)
 
@@ -151,7 +154,7 @@ JIRA_PROJECT_KEY="KAN"
 pytest tests/
 ```
 
-Tests cover pure utility functions (`_parse_action_items`, `_action_items_to_markdown`, `JiraTaskTool` mock behavior) and run without Ollama or JIRA credentials.
+Tests cover pure utility functions (`_parse_action_items`, `_action_items_to_markdown`, `JiraTaskTool` mock behavior) and all database operations. All tests run without Ollama or JIRA credentials.
 
 ## Customizing RAG rules
 

@@ -16,13 +16,16 @@ def _safe_signal(sig, handler):
 signal.signal = _safe_signal
 os.environ["CREWAI_TELEMETRY_OPT_OUT"] = "true"
 
-# Refactored imports
 from meeting_assistant import create_jira_tasks, draft_jira_tasks, _parse_action_items
+from database import init_db, save_meeting, get_all_meetings, get_meeting, delete_meeting
+
+init_db()
 
 
 def _action_items_to_markdown(items):
     valid_items = [item.strip() for item in items if item and item.strip()]
     return "\n".join(f"- {item}" for item in valid_items)
+
 
 st.set_page_config(page_title="AI Meeting Assistant", layout="wide")
 st.title("🤖 Autonomous JIRA & Meeting Analysis Assistant")
@@ -34,6 +37,27 @@ with st.sidebar:
     st.info("Embedding: Nomic-Embed-Text")
     st.success("RAG System: Active")
     st.info("Audio Model: Whisper (Small)")
+
+    st.markdown("---")
+    st.header("Meeting History")
+    meetings = get_all_meetings()
+    if not meetings:
+        st.caption("No meetings saved yet.")
+    else:
+        for m in meetings:
+            with st.expander(f"{m['created_at']} — {m['file_name'] or 'transcript'}"):
+                detail = get_meeting(m["id"])
+                if detail["transcript"]:
+                    st.markdown("**Transcript**")
+                    st.text(detail["transcript"][:500] + ("..." if len(detail["transcript"]) > 500 else ""))
+                st.markdown("**Action Items**")
+                st.markdown(detail["action_items"] or "_None_")
+                if detail["jira_output"]:
+                    st.markdown("**JIRA Output**")
+                    st.markdown(detail["jira_output"])
+                if st.button("Delete", key=f"del_{m['id']}"):
+                    delete_meeting(m["id"])
+                    st.rerun()
 
 uploaded_file = st.file_uploader(
     "Upload meeting transcript (.txt) or audio recording (.mp3, .wav)",
@@ -63,13 +87,25 @@ if uploaded_file is not None:
     else:
         if "transcript_text" not in st.session_state:
             try:
-                # Refactored import
                 from transcription import transcribe_audio_only
             except ModuleNotFoundError:
                 st.error("Whisper is not installed. Run `pip install openai-whisper`.")
                 st.stop()
-                
-            diarization_active = st.checkbox("🎙️ Perform speaker diarization (who said what?)")    
+
+            LANGUAGE_OPTIONS = {
+                "English": "en",
+                "Turkish": "tr",
+                "German": "de",
+                "French": "fr",
+                "Spanish": "es",
+            }
+            selected_language_label = st.selectbox(
+                "Audio language",
+                options=list(LANGUAGE_OPTIONS.keys()),
+                index=0,
+            )
+            selected_language = LANGUAGE_OPTIONS[selected_language_label]
+            diarization_active = st.checkbox("🎙️ Perform speaker diarization (who said what?)")
             if st.button("🎤 Transcribe Audio (Whisper)"):
                 with st.status("Transcribing audio...", expanded=True) as status:
                     with tempfile.NamedTemporaryFile(delete=False, suffix=os.path.splitext(file_name)[1]) as tmp:
@@ -77,12 +113,10 @@ if uploaded_file is not None:
                         tmp_path = tmp.name
                     try:
                         if diarization_active:
-                            # Refactored import
                             from transcription import transcribe_with_diarization
-                            st.session_state["transcript_text"] = transcribe_with_diarization(tmp_path)
+                            st.session_state["transcript_text"] = transcribe_with_diarization(tmp_path, language=selected_language)
                         else:
-                            st.session_state["transcript_text"] = transcribe_audio_only(tmp_path)
-                       
+                            st.session_state["transcript_text"] = transcribe_audio_only(tmp_path, language=selected_language)
                     except Exception as e:
                         st.error(f"Error: {e}")
                         st.stop()
@@ -92,7 +126,7 @@ if uploaded_file is not None:
                     status.update(label="Transcript ready.", state="complete", expanded=False)
                 st.rerun()
             st.stop()
-            
+
         analysis_content = st.session_state["transcript_text"]
         st.text_area("Whisper Transcript (Source)", analysis_content, height=150)
 
@@ -169,7 +203,14 @@ if uploaded_file is not None:
             with st.status("Creating approved tasks on JIRA...", expanded=True) as status:
                 try:
                     jira_result = create_jira_tasks(preview_markdown, human_input=human_input)
-                    st.session_state["jira_creation_output"] = getattr(jira_result, "raw", str(jira_result))
+                    jira_output = getattr(jira_result, "raw", str(jira_result))
+                    st.session_state["jira_creation_output"] = jira_output
+                    save_meeting(
+                        file_name=st.session_state.get("uploaded_file_name", ""),
+                        transcript=st.session_state.get("transcript_text") or analysis_content,
+                        action_items=preview_markdown,
+                        jira_output=jira_output,
+                    )
                     status.update(label="Approved tasks were created.", state="complete", expanded=False)
                 except Exception as e:
                     status.update(label="JIRA Creation Error", state="error", expanded=True)
