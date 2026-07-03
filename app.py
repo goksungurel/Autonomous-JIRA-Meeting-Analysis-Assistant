@@ -17,7 +17,7 @@ signal.signal = _safe_signal
 os.environ["CREWAI_TELEMETRY_OPT_OUT"] = "true"
 
 from meeting_assistant import create_jira_tasks, draft_jira_tasks, _parse_action_items
-from database import init_db, save_meeting, get_all_meetings, get_meeting, delete_meeting
+from database import init_db, save_meeting, get_all_meetings, search_meetings, get_meeting, delete_meeting
 
 init_db()
 
@@ -40,7 +40,10 @@ with st.sidebar:
 
     st.markdown("---")
     st.header("Meeting History")
-    meetings = get_all_meetings()
+    filter_name = st.text_input("Search by file name", placeholder="standup.txt")
+    filter_date = st.date_input("Filter by date", value=None)
+    date_str = filter_date.strftime("%Y-%m-%d") if filter_date else ""
+    meetings = search_meetings(file_name=filter_name, date=date_str)
     if not meetings:
         st.caption("No meetings saved yet.")
     else:
