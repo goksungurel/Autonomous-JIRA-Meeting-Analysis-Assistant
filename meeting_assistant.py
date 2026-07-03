@@ -60,9 +60,8 @@ class JiraTaskTool(BaseTool):
         import random
         fake_jira_key = f"KAN-{random.randint(100, 999)}"
         
-        # Terminalde bizim de görebilmemiz için log yazdırıyoruz
-        print(f"\n[MOCK API CALL] JIRA'ya gidilmedi ama görev açıldı sayıldı: {fake_jira_key}")
-        print(f"Başlık: {summary}\n")
+        print(f"\n[MOCK API CALL] Task created (mock, no real JIRA call): {fake_jira_key}")
+        print(f"Summary: {summary}\n")
         
         return f"SUCCESS: Task with key {fake_jira_key} created on JIRA."
 
@@ -190,8 +189,8 @@ def create_jira_tasks(action_items: str, human_input: str = ""):
     return crew.kickoff()
 
 
-def _parse_action_items(action_items: str):
-    lines = [line.strip() for line in action_items.splitlines() if line.strip()]
+def _parse_action_items(text: str):
+    lines = [line.strip() for line in (text or "").splitlines() if line.strip()]
     cleaned = []
     for line in lines:
         normalized = line.lstrip("-*• ").strip()
