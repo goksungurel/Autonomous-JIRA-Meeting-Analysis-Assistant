@@ -53,7 +53,7 @@ Agent 3: JIRA Specialist (creates approved tasks)
 - **Speech-to-text:** OpenAI Whisper (`transcription.py`)
 - **Speaker diarization (optional):** `pyannote.audio` (requires Hugging Face token)
 - **RAG rules / standards:** Markdown files in `knowledge_base/`
-- **Session history:** SQLite (`database.py`) — meetings and JIRA outputs persisted locally
+- **Session history:** SQLite (`database.py`) — meetings and JIRA outputs persisted locally with file name and date filtering
 
 ## Repository structure
 
@@ -123,7 +123,7 @@ Then:
 4. Click **Generate Task Suggestions**.
 5. Review and edit draft tasks.
 6. Click **Approve & Create Tasks on JIRA** to proceed, or reject the draft.
-7. Approved meetings are saved automatically — view past meetings in the **Meeting History** sidebar.
+7. Approved meetings are saved automatically — view, search, and filter past meetings in the **Meeting History** sidebar.
 
 ## Speaker diarization (optional)
 
