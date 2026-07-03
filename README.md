@@ -60,7 +60,8 @@ Agent 3: JIRA Specialist (creates approved tasks)
 - `meeting_assistant.py`: 3-agent CrewAI logic, RAG integration, and JIRA tool.
 - `transcription.py`: Whisper transcription functions (+ optional diarization).
 - `knowledge_base/meeting_rules_and_samples.md`: sample standards and "JIRA rules" used by RAG.
-- `requirements.txt`: minimal Python dependencies used by the demo.
+- `requirements.txt`: Python dependencies.
+- `tests/`: Unit tests for pure utility functions (run with `pytest`).
 
 ## Prerequisites
 
@@ -89,7 +90,7 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-Note: `requirements.txt` is intentionally minimal. If you enable diarization or real JIRA integration, install the extra dependencies mentioned below.
+For optional diarization support, uncomment `pyannote.audio` in `requirements.txt` before installing.
 
 ## Environment variables
 
@@ -128,21 +129,29 @@ If enabled, `transcription.py` uses `pyannote/speaker-diarization-3.1` and requi
 - `HF_TOKEN` with model access,
 - installation of `pyannote.audio` (not in `requirements.txt` by default).
 
-## JIRA integration status (important)
+## JIRA integration status
 
-### Current default behavior (safe demo mode)
+`JiraTaskTool` currently runs in mock mode — it returns a simulated key (e.g., `KAN-123`) without making any real API calls. This lets the app run without credentials.
 
-`meeting_assistant.py` currently returns mocked JIRA success messages (e.g., `KAN-123`) by default, so the app can run without credentials and without accidental writes.
+To enable real JIRA task creation:
 
-### Enabling real JIRA task creation
+1. Uncomment the real API block in `JiraTaskTool._run` inside `meeting_assistant.py`.
+2. Set the following in your `.env`:
 
-Real Atlassian logic already exists in `JiraTaskTool._run` but is currently commented out in favor of mock behavior.
+```bash
+JIRA_URL="https://your-domain.atlassian.net"
+JIRA_EMAIL="you@company.com"
+JIRA_TOKEN="your_jira_api_token"
+JIRA_PROJECT_KEY="KAN"
+```
 
-To enable real creation:
+## Running tests
 
-- restore the real API call section in `JiraTaskTool._run`,
-- set valid `.env` values for `JIRA_URL`, `JIRA_EMAIL`, `JIRA_TOKEN`, `JIRA_PROJECT_KEY`,
-- ensure required libs are installed (`atlassian-python-api`, `python-dotenv`).
+```bash
+pytest tests/
+```
+
+Tests cover pure utility functions (`_parse_action_items`, `_action_items_to_markdown`, `JiraTaskTool` mock behavior) and run without Ollama or JIRA credentials.
 
 ## Customizing RAG rules
 
