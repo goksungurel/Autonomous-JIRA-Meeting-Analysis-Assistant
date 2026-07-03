@@ -6,7 +6,6 @@ import os
 import ssl
 import urllib.request
 import whisper
-from pyannote.audio import Pipeline
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -44,6 +43,14 @@ def transcribe_with_diarization(file_path: str, model_name: str = "small") -> st
     """
     if not HF_TOKEN:
         raise ValueError("HF_TOKEN environment variable is missing! Add your Hugging Face token.")
+
+    try:
+        from pyannote.audio import Pipeline
+    except ImportError:
+        raise ImportError(
+            "pyannote.audio is not installed. "
+            "Run: pip install pyannote.audio"
+        )
 
     # 1. Get transcription with Whisper (with word timestamps)
     model = whisper.load_model(model_name)
