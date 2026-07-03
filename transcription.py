@@ -13,7 +13,7 @@ load_dotenv()
 _ssl_unverified = ssl._create_unverified_context()
 HF_TOKEN = os.environ.get("HF_TOKEN")
 
-def transcribe_audio_only(file_path: str, model_name: str = "small") -> str:
+def transcribe_audio_only(file_path: str, model_name: str = "small", language: str = "en") -> str:
     """Performs transcription using only Whisper — traditional behavior preserved."""
     _orig_urlopen = urllib.request.urlopen
     def _urlopen_no_verify(url, *args, **kwargs):
@@ -29,12 +29,12 @@ def transcribe_audio_only(file_path: str, model_name: str = "small") -> str:
     result = model.transcribe(
         file_path,
         fp16=False,
-        language="tr", # Set language of the AUDIO. Agents will handle English translation.
+        language=language,
         initial_prompt="PostgreSQL, JIRA, API v2, Onboarding, Sprint, Whisper, Python, Backend, Frontend, Deployment, Repo, GitHub, Review, Test, Bug, Feature",
     )
     return (result.get("text") or "").strip()
 
-def transcribe_with_diarization(file_path: str, model_name: str = "small") -> str:
+def transcribe_with_diarization(file_path: str, model_name: str = "small", language: str = "en") -> str:
     """
     Combines Whisper + pyannote diarization.
     Outputs format: Who said what.
@@ -57,7 +57,7 @@ def transcribe_with_diarization(file_path: str, model_name: str = "small") -> st
     result = model.transcribe(
         file_path,
         fp16=False,
-        language="tr", # Set language of the AUDIO. Agents will handle English translation.
+        language=language,
         initial_prompt="PostgreSQL, JIRA, API v2, Onboarding, Sprint, Backend, Frontend",
         word_timestamps=True,
     )
