@@ -17,17 +17,7 @@ signal.signal = _safe_signal
 os.environ["CREWAI_TELEMETRY_OPT_OUT"] = "true"
 
 # Refactored imports
-from meeting_assistant import create_jira_tasks, draft_jira_tasks
-
-
-def _parse_action_items(raw_text: str):
-    lines = [line.strip() for line in (raw_text or "").splitlines() if line.strip()]
-    items = []
-    for line in lines:
-        normalized = line.lstrip("-*• ").strip()
-        if normalized:
-            items.append(normalized)
-    return items
+from meeting_assistant import create_jira_tasks, draft_jira_tasks, _parse_action_items
 
 
 def _action_items_to_markdown(items):
