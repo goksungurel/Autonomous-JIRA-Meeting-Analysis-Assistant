@@ -43,6 +43,21 @@ def get_all_meetings():
         ).fetchall()
 
 
+def search_meetings(file_name: str = "", date: str = ""):
+    query = "SELECT id, created_at, file_name, action_items FROM meetings WHERE 1=1"
+    params = []
+    if file_name:
+        query += " AND file_name LIKE ?"
+        params.append(f"%{file_name}%")
+    if date:
+        query += " AND created_at LIKE ?"
+        params.append(f"{date}%")
+    query += " ORDER BY id DESC"
+    with get_connection() as conn:
+        conn.row_factory = sqlite3.Row
+        return conn.execute(query, params).fetchall()
+
+
 def get_meeting(meeting_id: int):
     with get_connection() as conn:
         conn.row_factory = sqlite3.Row

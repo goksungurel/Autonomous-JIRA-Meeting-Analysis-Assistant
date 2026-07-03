@@ -44,3 +44,30 @@ def test_delete_meeting_removes_record():
 
 def test_get_all_meetings_empty():
     assert database.get_all_meetings() == []
+
+
+def test_search_by_file_name():
+    database.save_meeting("standup.txt", "", "- Task A", "")
+    database.save_meeting("sprint_review.txt", "", "- Task B", "")
+    results = database.search_meetings(file_name="standup")
+    assert len(results) == 1
+    assert results[0]["file_name"] == "standup.txt"
+
+
+def test_search_by_file_name_no_match():
+    database.save_meeting("standup.txt", "", "- Task A", "")
+    results = database.search_meetings(file_name="nonexistent")
+    assert results == []
+
+
+def test_search_by_date():
+    database.save_meeting("standup.txt", "", "- Task A", "")
+    results = database.search_meetings(date="2099-01-01")
+    assert results == []
+
+
+def test_search_no_filters_returns_all():
+    database.save_meeting("a.txt", "", "", "")
+    database.save_meeting("b.txt", "", "", "")
+    results = database.search_meetings()
+    assert len(results) == 2
