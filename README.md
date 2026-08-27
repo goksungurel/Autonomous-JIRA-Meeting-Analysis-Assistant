@@ -195,3 +195,9 @@ pip install openai-whisper
 - Audio/transcripts are processed on your machine.
 - If real JIRA integration is enabled, approved tasks are sent to your JIRA instance.
 
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).
