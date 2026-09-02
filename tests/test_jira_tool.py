@@ -1,5 +1,14 @@
 import re
+import pytest
+import meeting_assistant
 from meeting_assistant import JiraTaskTool
+
+
+@pytest.fixture(autouse=True)
+def force_mock_mode(monkeypatch):
+    """Tests must exercise JiraTaskTool's mock path regardless of local .env
+    JIRA credentials — real API calls are covered by manual/integration testing."""
+    monkeypatch.setattr(meeting_assistant, "_JIRA_CONFIGURED", False)
 
 
 def test_returns_success_message():

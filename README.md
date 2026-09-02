@@ -102,11 +102,18 @@ Create a `.env` file in the project root:
 # Optional (for diarization)
 HF_TOKEN="your_huggingface_token"
 
-# Optional (for real JIRA API calls)
+# Optional (for real JIRA API calls — all four must be set to leave mock mode)
 JIRA_URL="https://your-domain.atlassian.net"
 JIRA_EMAIL="you@company.com"
 JIRA_TOKEN="your_jira_api_token"
 JIRA_PROJECT_KEY="KAN"
+
+# Optional: force mock JIRA responses even if the credentials above are set
+JIRA_MOCK_MODE=false
+
+# Optional: require this password before the Streamlit UI is shown.
+# The app has no built-in auth — without this, only run it on localhost.
+APP_PASSWORD=""
 ```
 
 ## Run the app
@@ -134,18 +141,22 @@ If enabled, `transcription.py` uses `pyannote/speaker-diarization-3.1` and requi
 
 ## JIRA integration status
 
-`JiraTaskTool` currently runs in mock mode — it returns a simulated key (e.g., `KAN-123`) without making any real API calls. This lets the app run without credentials.
+`JiraTaskTool` automatically switches between mock and real mode based on your environment — no source edits required:
 
-To enable real JIRA task creation:
-
-1. Uncomment the real API block in `JiraTaskTool._run` inside `meeting_assistant.py`.
-2. Set the following in your `.env`:
+- **Mock mode (default):** if any of `JIRA_URL`, `JIRA_EMAIL`, `JIRA_TOKEN`, `JIRA_PROJECT_KEY` is missing, the tool returns a simulated key (e.g., `KAN-123`) without making any real API calls. This lets the app run without credentials.
+- **Real mode:** once all four variables below are set in `.env`, the tool creates real JIRA issues.
 
 ```bash
 JIRA_URL="https://your-domain.atlassian.net"
 JIRA_EMAIL="you@company.com"
 JIRA_TOKEN="your_jira_api_token"
 JIRA_PROJECT_KEY="KAN"
+```
+
+To force mock mode even with valid credentials present (e.g. while testing locally), set:
+
+```bash
+JIRA_MOCK_MODE=true
 ```
 
 ## Running tests

@@ -21,6 +21,8 @@ def init_db():
                 jira_output TEXT
             )
         """)
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_meetings_file_name ON meetings(file_name)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_meetings_created_at ON meetings(created_at)")
 
 
 def save_meeting(file_name: str, transcript: str, action_items: str, jira_output: str) -> int:

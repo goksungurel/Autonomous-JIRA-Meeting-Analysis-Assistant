@@ -19,7 +19,15 @@ JIRA_EMAIL = os.getenv("JIRA_EMAIL")
 JIRA_TOKEN = os.getenv("JIRA_TOKEN")
 JIRA_PROJECT_KEY = os.getenv("JIRA_PROJECT_KEY")
 
-# --- JIRA GÖREV OLUŞTURMA ARACI ---
+# Real JIRA calls only run when all four credentials are configured in .env;
+# otherwise the tool falls back to a mock response so the app runs without credentials.
+# Set JIRA_MOCK_MODE=true to force the mock path even with valid credentials present.
+_JIRA_CONFIGURED = all([JIRA_URL, JIRA_EMAIL, JIRA_TOKEN, JIRA_PROJECT_KEY]) and os.getenv(
+    "JIRA_MOCK_MODE", ""
+).strip().lower() not in ("1", "true", "yes")
+
+
+# --- JIRA TASK CREATION TOOL ---
 class JiraTaskSchema(BaseModel):
     summary: str = Field(..., description="Short and clear summary of the JIRA task.")
     description: str = Field(..., description="Detailed description and acceptance criteria of the JIRA task.")
@@ -27,7 +35,7 @@ class JiraTaskSchema(BaseModel):
 class JiraTaskTool(BaseTool):
     name: str = "JiraTaskCreator"
     description: str = """
-    Creates a new task on JIRA. 
+    Creates a new task on JIRA.
     You must send ONLY a single JSON object as 'Action Input'.
     Example format:
     {
@@ -37,38 +45,38 @@ class JiraTaskTool(BaseTool):
     """
 
     def _run(self, summary: str, description: str) -> str:
-        """
-        try:
-            jira = Jira(
-                url=JIRA_URL,
-                username=JIRA_EMAIL,
-                password=JIRA_TOKEN,
-                cloud=True
-            )
-            
-            issue = jira.issue_create(fields={
-                'project': {'key': JIRA_PROJECT_KEY},
-                'summary': summary,
-                'description': description,
-                'issuetype': {'name': 'Task'},
-            })
-            return f"SUCCESS: Task with key {issue['key']} created on JIRA."
-        except Exception as e:
-            return f"ERROR: Could not create JIRA task. Detail: {str(e)}"
-            """
+        if _JIRA_CONFIGURED:
+            try:
+                jira = Jira(
+                    url=JIRA_URL,
+                    username=JIRA_EMAIL,
+                    password=JIRA_TOKEN,
+                    cloud=True
+                )
+
+                issue = jira.issue_create(fields={
+                    'project': {'key': JIRA_PROJECT_KEY},
+                    'summary': summary,
+                    'description': description,
+                    'issuetype': {'name': 'Task'},
+                })
+                return f"SUCCESS: Task with key {issue['key']} created on JIRA."
+            except Exception as e:
+                return f"ERROR: Could not create JIRA task. Detail: {str(e)}"
 
         import random
         fake_jira_key = f"KAN-{random.randint(100, 999)}"
-        
+
         print(f"\n[MOCK API CALL] Task created (mock, no real JIRA call): {fake_jira_key}")
         print(f"Summary: {summary}\n")
-        
+
         return f"SUCCESS: Task with key {fake_jira_key} created on JIRA."
 
 jira_tool = JiraTaskTool()
 
 # --- LLM AND RAG SETTINGS ---
-os.environ["OPENAI_API_KEY"] = "sk-dummy"
+# Only fill in a placeholder if the caller hasn't already set a real key.
+os.environ.setdefault("OPENAI_API_KEY", "sk-dummy")
 
 local_llm = LLM(
     model="ollama/llama3:latest",
@@ -86,10 +94,23 @@ _rag_config = {
     },
 }
 
+_knowledge_base = Path(__file__).resolve().parent / "knowledge_base"
 rag_tool = RagTool(config=_rag_config)
-_knowledge_base = Path(__file__).resolve().parent / "knowledge_base" 
-if _knowledge_base.exists():
-    rag_tool.add(data_type="directory", path=str(_knowledge_base))
+_knowledge_base_loaded = False
+
+
+def _ensure_knowledge_base_loaded() -> None:
+    """Embed knowledge_base/ into the RAG store on first real use only.
+
+    Deferred so importing this module (e.g. from tests, or from the JIRA-only
+    creation flow) never triggers a network call to the Ollama embedding API.
+    """
+    global _knowledge_base_loaded
+    if _knowledge_base_loaded:
+        return
+    if _knowledge_base.exists():
+        rag_tool.add(data_type="directory", path=str(_knowledge_base))
+    _knowledge_base_loaded = True
 
 # --- ANALYSIS FUNCTION ---
 def _build_guidance_block(human_input: str) -> str:
@@ -103,6 +124,7 @@ def _build_guidance_block(human_input: str) -> str:
 
 def draft_jira_tasks(text: str, human_input: str = ""):
     guidance_block = _build_guidance_block(human_input)
+    _ensure_knowledge_base_loaded()
 
     transcript_editor = Agent(
         role="Senior Transcript Editor",

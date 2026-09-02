@@ -1,21 +1,24 @@
-# CrewAI + RAG (Ollama ile yerel çalışma)
-crewai>=1.9.3
-crewai-tools>=1.9.3
+# CrewAI + RAG (runs locally via Ollama)
+crewai==1.10.1
+crewai-tools==1.10.1
 
-# Arayüz
-streamlit>=1.28.0   
+# UI
+streamlit==1.55.0
 
-# Ses → metin (transkript)
-openai-whisper>=20231117
+# Speech-to-text (transcription)
+openai-whisper==20250625
 
-# Ortam değişkenleri
-python-dotenv>=1.0.0
+# Environment variables
+python-dotenv==1.1.1
 
-# JIRA entegrasyonu
-atlassian-python-api>=3.41.0
+# Verified HTTPS downloads for Whisper model files
+certifi>=2024.0.0
 
-# Konuşmacı diarizasyonu (isteğe bağlı — HF_TOKEN gerektirir)
+# JIRA integration
+atlassian-python-api==4.0.7
+
+# Speaker diarization (optional — requires HF_TOKEN)
 # pyannote.audio>=3.1.0
 
-# Test
-pytest>=8.0.0
+# Tests
+pytest==9.1.1

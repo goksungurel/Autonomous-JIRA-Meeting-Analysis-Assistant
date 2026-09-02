@@ -1,10 +1,14 @@
 """
 Streamlit UI for the AI Meeting Assistant. Completely translated to English.
 """
+import logging
 import os
 import signal
 import tempfile
 import streamlit as st
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # CrewAI Telemetry bypass
 _orig_signal = signal.signal
@@ -28,6 +32,24 @@ def _action_items_to_markdown(items):
 
 
 st.set_page_config(page_title="AI Meeting Assistant", layout="wide")
+
+# Optional access gate. This app has no built-in authentication and reads/writes
+# meeting transcripts and JIRA output; set APP_PASSWORD to require a shared
+# password before the UI is shown. Without it, treat the app as localhost-only —
+# do not expose it on a shared network or the public internet.
+_app_password = os.environ.get("APP_PASSWORD")
+if _app_password:
+    if not st.session_state.get("authenticated"):
+        st.title("🔒 AI Meeting Assistant")
+        entered_password = st.text_input("Password", type="password")
+        if st.button("Unlock"):
+            if entered_password == _app_password:
+                st.session_state["authenticated"] = True
+                st.rerun()
+            else:
+                st.error("Incorrect password.")
+        st.stop()
+
 st.title("🤖 Autonomous JIRA & Meeting Analysis Assistant")
 st.markdown("---")
 
@@ -121,6 +143,7 @@ if uploaded_file is not None:
                         else:
                             st.session_state["transcript_text"] = transcribe_audio_only(tmp_path, language=selected_language)
                     except Exception as e:
+                        logger.exception("Transcription failed for %s", file_name)
                         st.error(f"Error: {e}")
                         st.stop()
                     finally:
@@ -144,6 +167,7 @@ if uploaded_file is not None:
                 st.session_state.pop("jira_creation_output", None)
                 status.update(label="Draft task list is ready.", state="complete", expanded=False)
             except Exception as e:
+                logger.exception("Task suggestion generation failed")
                 status.update(label="Agent Error", state="error", expanded=True)
                 st.error(f"Error detail: {e}")
 
@@ -216,6 +240,7 @@ if uploaded_file is not None:
                     )
                     status.update(label="Approved tasks were created.", state="complete", expanded=False)
                 except Exception as e:
+                    logger.exception("JIRA task creation failed")
                     status.update(label="JIRA Creation Error", state="error", expanded=True)
                     st.error(f"Error detail: {e}")
 

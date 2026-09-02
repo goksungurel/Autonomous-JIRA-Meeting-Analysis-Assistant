@@ -4,27 +4,32 @@ Optional: Includes pyannote.audio for speaker diarization (who said what).
 """
 import os
 import ssl
-import urllib.request
 import whisper
+import certifi
 from dotenv import load_dotenv
 
 load_dotenv()
 
-_ssl_unverified = ssl._create_unverified_context()
+# whisper.load_model() downloads the model over HTTPS using the interpreter's
+# default SSL context, which on some macOS Python installs has no CA bundle
+# configured. Point it at certifi's bundle instead of disabling verification.
+_ssl_verified = ssl.create_default_context(cafile=certifi.where())
+ssl._create_default_https_context = lambda: _ssl_verified
+
 HF_TOKEN = os.environ.get("HF_TOKEN")
+
+_MODEL_CACHE: dict[str, "whisper.Whisper"] = {}
+
+
+def _load_model(model_name: str):
+    if model_name not in _MODEL_CACHE:
+        _MODEL_CACHE[model_name] = whisper.load_model(model_name)
+    return _MODEL_CACHE[model_name]
+
 
 def transcribe_audio_only(file_path: str, model_name: str = "small", language: str = "en") -> str:
     """Performs transcription using only Whisper — traditional behavior preserved."""
-    _orig_urlopen = urllib.request.urlopen
-    def _urlopen_no_verify(url, *args, **kwargs):
-        if isinstance(url, str) and url.startswith("https://"):
-            kwargs.setdefault("context", _ssl_unverified)
-        return _orig_urlopen(url, *args, **kwargs)
-    try:
-        urllib.request.urlopen = _urlopen_no_verify
-        model = whisper.load_model(model_name)
-    finally:
-        urllib.request.urlopen = _orig_urlopen
+    model = _load_model(model_name)
 
     result = model.transcribe(
         file_path,
@@ -53,7 +58,7 @@ def transcribe_with_diarization(file_path: str, model_name: str = "small", langu
         )
 
     # 1. Get transcription with Whisper (with word timestamps)
-    model = whisper.load_model(model_name)
+    model = _load_model(model_name)
     result = model.transcribe(
         file_path,
         fp16=False,
@@ -72,10 +77,14 @@ def transcribe_with_diarization(file_path: str, model_name: str = "small", langu
     diarization = pipeline(file_path)
 
     # 3. Match each Whisper segment with the closest speaker
+    # Materialize the diarization turns once — itertracks() re-walks the whole
+    # annotation on every call, so calling it per-segment was O(segments * turns).
+    _turns = list(diarization.itertracks(yield_label=True))
+
     def find_speaker(start, end):
         max_intersection = 0
         found_speaker = "SPEAKER_??"
-        for turn, _, speaker in diarization.itertracks(yield_label=True):
+        for turn, _, speaker in _turns:
             intersection = min(end, turn.end) - max(start, turn.start)
             if intersection > max_intersection:
                 max_intersection = intersection
