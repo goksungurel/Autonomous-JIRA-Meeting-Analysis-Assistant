@@ -1,6 +1,10 @@
 # CrewAI + RAG (runs locally via Ollama)
 crewai==1.10.1
 crewai-tools==1.10.1
+# Required for CrewAI's LLM() to recognize non-native providers like "ollama/..."
+litellm==1.82.3
+# Required for RagTool's ollama embedding provider config to validate
+ollama==0.6.1
 
 # UI
 streamlit==1.55.0
