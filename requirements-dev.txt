@@ -1,0 +1,8 @@
+# Development-only tools — not needed to run the app, only to develop it.
+-r requirements.txt
+
+# Tests
+pytest==9.1.1
+
+# Lint
+ruff==0.16.5

@@ -1,0 +1,5 @@
+# Explicit limit for uploaded audio/transcript files (in MB). Whisper transcription
+# of very large audio files is slow and memory-heavy, so this is intentionally
+# not left at Streamlit's default; raise it if you need to process longer recordings.
+[server]
+maxUploadSize = 300

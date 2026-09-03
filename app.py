@@ -21,7 +21,7 @@ signal.signal = _safe_signal
 os.environ["CREWAI_TELEMETRY_OPT_OUT"] = "true"
 
 from meeting_assistant import create_jira_tasks, draft_jira_tasks, _parse_action_items
-from database import init_db, save_meeting, get_all_meetings, search_meetings, get_meeting, delete_meeting
+from database import init_db, save_meeting, search_meetings, get_meeting, delete_meeting
 
 init_db()
 
@@ -106,7 +106,11 @@ if uploaded_file is not None:
         st.session_state.pop("jira_creation_output", None)
 
     if extension == "txt":
-        text_content = uploaded_file.getvalue().decode("utf-8")
+        try:
+            text_content = uploaded_file.getvalue().decode("utf-8")
+        except UnicodeDecodeError:
+            st.error("Could not read this file as UTF-8 text. Please upload a UTF-8 encoded .txt file.")
+            st.stop()
         st.text_area("Uploaded Text", text_content, height=150)
         analysis_content = text_content
     else:

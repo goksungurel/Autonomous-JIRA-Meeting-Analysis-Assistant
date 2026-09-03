@@ -1,4 +1,3 @@
-import pytest
 from app import _action_items_to_markdown
 
 

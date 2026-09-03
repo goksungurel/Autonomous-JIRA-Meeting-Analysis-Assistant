@@ -23,6 +23,3 @@ atlassian-python-api==4.0.7
 
 # Speaker diarization (optional — requires HF_TOKEN)
 # pyannote.audio>=3.1.0
-
-# Tests
-pytest==9.1.1

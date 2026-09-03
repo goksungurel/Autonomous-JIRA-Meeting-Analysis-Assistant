@@ -1,4 +1,3 @@
-import pytest
 from meeting_assistant import _parse_action_items
 
 

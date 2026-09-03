@@ -145,9 +145,12 @@ graph LR
 - `transcription.py` — Whisper transcription functions (+ optional diarization).
 - `database.py` — SQLite helpers for persisting meeting history.
 - `knowledge_base/meeting_rules_and_samples.md` — sample standards and "JIRA rules" used by RAG.
-- `requirements.txt` — Python dependencies.
-- `tests/` — unit tests for pure utility functions and database operations (run with `pytest`).
-- `.github/workflows/tests.yml` — CI pipeline that runs the test suite.
+- `requirements.txt` / `requirements-dev.txt` — runtime and development (test + lint) Python dependencies.
+- `.env.example` — template for the environment variables below; copy to `.env`.
+- `.streamlit/config.toml` — Streamlit server settings (upload size limit).
+- `pyproject.toml` — `ruff` lint configuration.
+- `tests/` — unit tests for pure utility functions, the CrewAI agent/task wiring, and database operations (run with `pytest`).
+- `.github/workflows/tests.yml` — CI pipeline that runs lint and the test suite across Python 3.10–3.12.
 
 ## Prerequisites
 
@@ -178,11 +181,21 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
+For development (running tests and lint), install `requirements-dev.txt` instead — it pulls in `requirements.txt` plus `pytest` and `ruff`:
+
+```bash
+pip install -r requirements-dev.txt
+```
+
 For optional diarization support, uncomment `pyannote.audio` in `requirements.txt` before installing.
 
 ## Environment variables
 
-Create a `.env` file in the project root:
+Copy `.env.example` to `.env` and fill in what you need — everything in it is optional:
+
+```bash
+cp .env.example .env
+```
 
 ```bash
 # Optional (for diarization)
@@ -218,6 +231,8 @@ Then:
 6. Click **Approve & Create Tasks on JIRA** to proceed, or reject the draft.
 7. Approved meetings are saved automatically — view, search, and filter past meetings in the **Meeting History** sidebar.
 
+Upload size is capped at 300MB (`.streamlit/config.toml`, `server.maxUploadSize`) — raise it there if you need to process longer recordings.
+
 ## Speaker diarization (optional)
 
 If enabled, `transcription.py` uses `pyannote/speaker-diarization-3.1` and requires:
@@ -243,7 +258,15 @@ JIRA_MOCK_MODE=true
 pytest tests/
 ```
 
-Tests cover pure utility functions (`_parse_action_items`, `_action_items_to_markdown`, `JiraTaskTool` mock behavior) and all database operations. All tests run without Ollama running and without JIRA credentials — the JIRA tool tests force mock mode regardless of what's in your local `.env`, and the RAG knowledge base is only loaded lazily on first real agent run, not at import time.
+Tests cover pure utility functions (`_parse_action_items`, `_action_items_to_markdown`), `JiraTaskTool` mock behavior, the `draft_jira_tasks`/`create_jira_tasks` CrewAI wiring (with `Crew.kickoff()` stubbed out), and all database operations. All tests run without Ollama running and without JIRA credentials — the JIRA tool tests force mock mode regardless of what's in your local `.env`, and the RAG knowledge base is only loaded lazily on first real agent run, not at import time.
+
+## Linting
+
+```bash
+ruff check .
+```
+
+Runs in CI on every push/PR alongside the test suite, across Python 3.10–3.12.
 
 ## Customizing RAG rules
 
