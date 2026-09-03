@@ -11,6 +11,8 @@ from crewai_tools import RagTool
 from atlassian import Jira
 from pydantic import BaseModel, Field
 
+from knowledge_base_sync import KnowledgeBaseSync
+
 # Load environment variables
 load_dotenv()
 
@@ -95,22 +97,22 @@ _rag_config = {
 }
 
 _knowledge_base = Path(__file__).resolve().parent / "knowledge_base"
+_kb_state_file = Path(__file__).resolve().parent / ".knowledge_base_sync_state.json"
 rag_tool = RagTool(config=_rag_config)
-_knowledge_base_loaded = False
+kb_sync = KnowledgeBaseSync(rag_tool, _knowledge_base, _kb_state_file)
 
 
 def _ensure_knowledge_base_loaded() -> None:
-    """Embed knowledge_base/ into the RAG store on first real use only.
+    """Sync knowledge_base/ into the RAG store on first real use only.
 
     Deferred so importing this module (e.g. from tests, or from the JIRA-only
     creation flow) never triggers a network call to the Ollama embedding API.
+    kb_sync.sync() itself is cheap when the directory hasn't changed (a
+    fingerprint comparison, no embedding call), so adding, editing, or
+    removing a file under knowledge_base/ takes effect on the next call
+    without needing a code change or an app restart.
     """
-    global _knowledge_base_loaded
-    if _knowledge_base_loaded:
-        return
-    if _knowledge_base.exists():
-        rag_tool.add(data_type="directory", path=str(_knowledge_base))
-    _knowledge_base_loaded = True
+    kb_sync.sync()
 
 # --- ANALYSIS FUNCTION ---
 def _build_guidance_block(human_input: str) -> str:

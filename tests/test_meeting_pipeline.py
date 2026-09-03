@@ -31,10 +31,10 @@ def fake_crew(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def skip_rag_loading(monkeypatch):
-    """draft_jira_tasks() calls _ensure_knowledge_base_loaded(); pretend it
-    already ran so no embedding call is made. The loader itself is covered
-    by its own tests below."""
-    monkeypatch.setattr(meeting_assistant, "_knowledge_base_loaded", True)
+    """draft_jira_tasks() calls _ensure_knowledge_base_loaded(); stub it out
+    so no embedding call is made. KnowledgeBaseSync itself is covered by
+    tests/test_knowledge_base_sync.py."""
+    monkeypatch.setattr(meeting_assistant, "_ensure_knowledge_base_loaded", lambda: None)
 
 
 def test_build_guidance_block_empty_for_blank_input():
@@ -90,29 +90,3 @@ def test_create_jira_tasks_wires_one_agent_and_task():
     assert "Fix login bug" in crew.tasks[0].description
 
 
-def test_ensure_knowledge_base_loaded_calls_add_once(monkeypatch):
-    monkeypatch.setattr(meeting_assistant, "_knowledge_base_loaded", False)
-    calls = []
-    monkeypatch.setattr(
-        type(meeting_assistant.rag_tool), "add", lambda self, **kwargs: calls.append(kwargs)
-    )
-
-    meeting_assistant._ensure_knowledge_base_loaded()
-    meeting_assistant._ensure_knowledge_base_loaded()
-
-    assert len(calls) == 1
-    assert meeting_assistant._knowledge_base_loaded is True
-
-
-def test_ensure_knowledge_base_loaded_skips_missing_directory(monkeypatch, tmp_path):
-    monkeypatch.setattr(meeting_assistant, "_knowledge_base_loaded", False)
-    monkeypatch.setattr(meeting_assistant, "_knowledge_base", tmp_path / "does_not_exist")
-    calls = []
-    monkeypatch.setattr(
-        type(meeting_assistant.rag_tool), "add", lambda self, **kwargs: calls.append(kwargs)
-    )
-
-    meeting_assistant._ensure_knowledge_base_loaded()
-
-    assert calls == []
-    assert meeting_assistant._knowledge_base_loaded is True

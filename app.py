@@ -20,7 +20,7 @@ def _safe_signal(sig, handler):
 signal.signal = _safe_signal
 os.environ["CREWAI_TELEMETRY_OPT_OUT"] = "true"
 
-from meeting_assistant import create_jira_tasks, draft_jira_tasks, _parse_action_items
+from meeting_assistant import create_jira_tasks, draft_jira_tasks, _parse_action_items, kb_sync
 from database import init_db, save_meeting, search_meetings, get_meeting, delete_meeting
 
 init_db()
@@ -59,6 +59,21 @@ with st.sidebar:
     st.info("Embedding: Nomic-Embed-Text")
     st.success("RAG System: Active")
     st.info("Audio Model: Whisper (Small)")
+
+    st.markdown("---")
+    st.header("Knowledge Base")
+    kb_files = kb_sync.list_files()
+    st.caption(f"{len(kb_files)} document(s) loaded")
+    for kb_file in kb_files:
+        st.text(f"• {kb_file}")
+    st.caption("Add or remove files under knowledge_base/ and they take effect on the next sync — no restart needed.")
+    if st.button("🔄 Resync knowledge base"):
+        try:
+            result = kb_sync.sync(force=True)
+            st.success(f"Synced {result.file_count} document(s).")
+        except Exception as e:
+            logger.exception("Manual knowledge base resync failed")
+            st.error(f"Resync failed: {e}")
 
     st.markdown("---")
     st.header("Meeting History")

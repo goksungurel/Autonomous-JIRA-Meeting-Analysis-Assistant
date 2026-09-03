@@ -59,6 +59,18 @@ flowchart TD
 | 2 | IT Meeting Analyst | Queries the local knowledge base **exactly once** for `"JIRA standards"`, then extracts action items in the required format. |
 | 3 | JIRA Operations Specialist | Creates one JIRA task per approved action item via `JiraTaskTool`. |
 
+### Pluggable knowledge base
+
+`knowledge_base/` holds one topic per Markdown file (deployment, priority rules, JIRA formatting, etc.) instead of one large document — each file becomes its own retrievable chunk, so the RAG query actually has more than one candidate to choose between.
+
+`knowledge_base_sync.py` (`KnowledgeBaseSync`) keeps the vector store in sync with that directory automatically:
+
+- **Adding or removing a document is the whole workflow** — drop a `.md`/`.txt`/`.pdf`/etc. file in, or delete one, and it takes effect on the next agent run. No re-indexing command, no code change.
+- It fingerprints the directory (relative path + content hash per file) and only re-embeds when that fingerprint actually changes — an unchanged knowledge base costs a few hashes, not an Ollama call, on every run.
+- A change does a full rebuild (clear the collection, re-add every current file) rather than tracking per-chunk state, which is simpler and avoids depending on unstable internal APIs for partial deletes.
+- The Streamlit sidebar shows the currently loaded documents and has a **Resync knowledge base** button for a manual, forced rebuild.
+- Fully unit-tested (`tests/test_knowledge_base_sync.py`) against a fake vector store double — no Ollama needed to verify the sync logic itself.
+
 ### Human-in-the-loop flow
 
 ```mermaid
@@ -102,6 +114,7 @@ graph LR
     end
     subgraph CORE["Core logic"]
         MA["meeting_assistant.py<br/>CrewAI agents + RAG + JIRA tool"]
+        KBS["knowledge_base_sync.py<br/>KnowledgeBaseSync"]
         TR["transcription.py<br/>Whisper + pyannote"]
         DB["database.py<br/>SQLite helpers"]
     end
@@ -113,14 +126,18 @@ graph LR
     end
     subgraph STORE["Storage"]
         KB[["knowledge_base/*.md"]]
+        STATE[(".knowledge_base_sync_state.json")]
         SQLITE[("meetings.db")]
     end
 
     APP --> MA
+    APP --> KBS
     APP --> TR
     APP --> DB
+    MA --> KBS
+    KBS --> KB
+    KBS --> STATE
     MA --> OLLAMA
-    MA --> KB
     MA --> JIRA
     TR --> WHISPER
     TR --> HF
@@ -134,7 +151,7 @@ graph LR
 - **Local LLM + embeddings:** Ollama (`llama3`, `nomic-embed-text`)
 - **Speech-to-text:** OpenAI Whisper (`transcription.py`)
 - **Speaker diarization (optional):** `pyannote.audio` (requires a Hugging Face token)
-- **RAG rules / standards:** Markdown files in `knowledge_base/`
+- **RAG rules / standards:** one Markdown file per topic in `knowledge_base/`, auto-synced by `knowledge_base_sync.py`
 - **Session history:** SQLite (`database.py`) — meetings and JIRA outputs persisted locally, with search/filter by file name and date
 - **CI:** GitHub Actions runs the test suite on every push/PR (`.github/workflows/tests.yml`)
 
@@ -142,9 +159,10 @@ graph LR
 
 - `app.py` — Streamlit UI: upload, transcription, draft task generation, and approval-based JIRA creation.
 - `meeting_assistant.py` — 3-agent CrewAI logic, RAG integration, and the JIRA tool (mock/real switch).
+- `knowledge_base_sync.py` — keeps the RAG vector store in sync with `knowledge_base/` (see [Pluggable knowledge base](#pluggable-knowledge-base)).
 - `transcription.py` — Whisper transcription functions (+ optional diarization).
 - `database.py` — SQLite helpers for persisting meeting history.
-- `knowledge_base/meeting_rules_and_samples.md` — sample standards and "JIRA rules" used by RAG.
+- `knowledge_base/*.md` — one topic-scoped standards document per file, used by RAG (add/remove files freely).
 - `requirements.txt` / `requirements-dev.txt` — runtime and development (test + lint) Python dependencies.
 - `.env.example` — template for the environment variables below; copy to `.env`.
 - `.streamlit/config.toml` — Streamlit server settings (upload size limit).
@@ -258,7 +276,7 @@ JIRA_MOCK_MODE=true
 pytest tests/
 ```
 
-Tests cover pure utility functions (`_parse_action_items`, `_action_items_to_markdown`), `JiraTaskTool` mock behavior, the `draft_jira_tasks`/`create_jira_tasks` CrewAI wiring (with `Crew.kickoff()` stubbed out), and all database operations. All tests run without Ollama running and without JIRA credentials — the JIRA tool tests force mock mode regardless of what's in your local `.env`, and the RAG knowledge base is only loaded lazily on first real agent run, not at import time.
+Tests cover pure utility functions (`_parse_action_items`, `_action_items_to_markdown`), `JiraTaskTool` mock behavior, the `draft_jira_tasks`/`create_jira_tasks` CrewAI wiring (with `Crew.kickoff()` stubbed out), `KnowledgeBaseSync`'s add/edit/remove/force-resync behavior (against a fake vector store double), and all database operations. All tests run without Ollama running and without JIRA credentials — the JIRA tool tests force mock mode regardless of what's in your local `.env`, and the RAG knowledge base is only synced lazily on first real agent run, not at import time.
 
 ## Linting
 
@@ -270,17 +288,14 @@ Runs in CI on every push/PR alongside the test suite, across Python 3.10–3.12.
 
 ## Customizing RAG rules
 
-The analyst agent is instructed to query RAG exactly once with `"JIRA standards"`.
-Update standards in:
+The analyst agent is instructed to query RAG exactly once with `"JIRA standards"`. Standards live in `knowledge_base/`, one topic per file:
 
-- `knowledge_base/meeting_rules_and_samples.md`
+- `jira_formatting_rules.md` — title/description/tag conventions
+- `priority_rules.md` — how High/Medium/Low priority is assigned
+- `deployment_and_release.md`, `performance_and_technical_debt.md`, `documentation_standards.md`, `onboarding_and_hr.md`, `data_and_ai_standards.md` — per-domain rules
+- `decision_to_task_examples.md` — worked examples
 
-Typical customizations:
-
-- team prefixes (`[Backend]`, `[Frontend]`, `[Mobile]`, etc.),
-- priority rules,
-- tag conventions,
-- output examples/templates.
+To customize: edit any file, or **add a new file** for a new domain (e.g. `security_standards.md`) — no code change needed, it's picked up automatically on the next agent run (see [Pluggable knowledge base](#pluggable-knowledge-base)). To retire a domain, delete its file.
 
 ## Troubleshooting
 

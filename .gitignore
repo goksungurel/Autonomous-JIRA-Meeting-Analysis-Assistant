@@ -5,3 +5,4 @@ __pycache__/
 *.pyc
 .DS_Store
 meetings.db
+.knowledge_base_sync_state.json
